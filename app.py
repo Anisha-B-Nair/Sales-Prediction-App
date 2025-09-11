@@ -3,6 +3,7 @@ import pickle
 import pandas as pd
 import numpy as np
 import os
+import xgboost as xgb
 
 # ===============================
 # Load model and feature objects
@@ -50,6 +51,16 @@ product_mapping = {
 }
 
 # ===============================
+# City Mapping (real city names → category)
+# ===============================
+city_map = {
+    "Mumbai": "A",
+    "Delhi": "B",
+    "Bangalore": "C"
+    # Add more cities if needed
+}
+
+# ===============================
 # Input Section
 # ===============================
 st.header("Customer & Product Details")
@@ -61,7 +72,8 @@ with col1:
     occupation = st.number_input("Occupation Code", min_value=0, step=1)
     stay = st.number_input("Years in Current City", min_value=0, step=1)
     marital = st.selectbox("Marital Status", ["Single", "Married"])
-    city = st.selectbox("City Category", ["A", "B", "C"])
+    city_name = st.selectbox("City", list(city_map.keys()))
+    city_category = city_map[city_name]
 
 with col2:
     prod_cat1_label = st.selectbox("Product Category 1", list(product_mapping.values()))
@@ -86,8 +98,9 @@ prod_cat3 = inv_mapping[prod_cat3_label]
 gender_encoded = feature_objects['Gender_Encoder'].transform([gender])[0] if 'Gender_Encoder' in feature_objects else (1 if gender=="M" else 0)
 age_encoded = feature_objects['Age_Map'][age] if 'Age_Map' in feature_objects else {'0-17':0,'18-25':1,'26-35':2,'36-45':3,'46-50':4,'51-55':5,'55+':6}[age]
 marital_encoded = 1 if marital=="Married" else 0
-city_b = 1 if city=="B" else 0
-city_c = 1 if city=="C" else 0
+city_b = 1 if city_category == "B" else 0
+city_c = 1 if city_category == "C" else 0
+# City A is baseline: B=0, C=0
 
 # ===============================
 # Prepare input DataFrame
@@ -117,9 +130,16 @@ if 'columns_order' in feature_objects:
 # Prediction
 # ===============================
 if st.button("Predict Purchase Amount"):
-    prediction = model.predict(input_df)
+    # Convert input DataFrame to DMatrix for XGBoost Booster
+    dinput = xgb.DMatrix(input_df)
+    prediction = model.predict(dinput)
     st.success(f"💰 Predicted Purchase Amount: {prediction[0]:.2f}")
 
+# ===============================
 # Optional: show input data
+# ===============================
 with st.expander("Show Input Data"):
     st.write(input_df)
+
+# Optional caption explaining city encoding
+st.caption("City categories are internally encoded: A=baseline, B=1 if City B, C=1 if City C.")
