@@ -1,45 +1,95 @@
 import streamlit as st
 import pickle
+import pandas as pd
 import numpy as np
 
-# Load the saved model
-with open("model.pkl", "rb") as file:
-    model = pickle.load(file)
+# ===============================
+# Load model and feature objects
+# ===============================
+with open("model.pkl", "rb") as f:
+    model = pickle.load(f)
 
-st.title("🛍️ Black Friday Sales Prediction")
-st.header("Enter Customer & Product Details:")
+with open("features.pkl", "rb") as f:
+    feature_objects = pickle.load(f)
 
-# Inputs
-gender = st.selectbox("Gender", ["M", "F"])
-age = st.selectbox("Age", ['0-17', '18-25', '26-35', '36-45', '46-50', '51-55', '55+'])
-occupation = st.number_input("Occupation (Code)", min_value=0, step=1)
-stay = st.number_input("Years in Current City", min_value=0, step=1)
-marital = st.selectbox("Marital Status", ["Single", "Married"])
-prod_cat1 = st.number_input("Product Category 1", min_value=0, step=1)
-prod_cat2 = st.number_input("Product Category 2", min_value=0, step=1)
-prod_cat3 = st.number_input("Product Category 3", min_value=0, step=1)
-city = st.selectbox("City Category", ["A", "B", "C"])
-user_avg = st.number_input("User Avg Purchase", min_value=0.0, step=1.0)
-user_total = st.number_input("User Total Purchase", min_value=0.0, step=1.0)
-prod_avg = st.number_input("Product Avg Purchase", min_value=0.0, step=1.0)
-user_count = st.number_input("User Purchase Count", min_value=0, step=1)
+st.set_page_config(page_title="Black Friday Sales Prediction", layout="wide")
+st.title("🛍️ Black Friday Sales Prediction App")
+st.write("Predict the purchase amount for a customer based on their profile and product details.")
 
-# Encode inputs the same way as during training
-gender = 1 if gender=="M" else 0
-age_map = {'0-17':0,'18-25':1,'26-35':2,'36-45':3,'46-50':4,'51-55':5,'55+':6}
-age = age_map[age]
-marital = 1 if marital=="Married" else 0
+# ===============================
+# Input Section
+# ===============================
+st.header("Customer & Product Details")
+
+# Create two columns for better layout
+col1, col2 = st.columns(2)
+
+with col1:
+    gender = st.selectbox("Gender", ["M", "F"])
+    age = st.selectbox("Age", ['0-17', '18-25', '26-35', '36-45', '46-50', '51-55', '55+'])
+    occupation = st.number_input("Occupation Code", min_value=0, step=1)
+    stay = st.number_input("Years in Current City", min_value=0, step=1)
+    marital = st.selectbox("Marital Status", ["Single", "Married"])
+    city = st.selectbox("City Category", ["A", "B", "C"])
+
+with col2:
+    prod_cat1 = st.number_input("Product Category 1", min_value=0, step=1)
+    prod_cat2 = st.number_input("Product Category 2", min_value=0, step=1)
+    prod_cat3 = st.number_input("Product Category 3", min_value=0, step=1)
+    user_avg = st.number_input("User Avg Purchase", min_value=0.0, step=1.0)
+    user_total = st.number_input("User Total Purchase", min_value=0.0, step=1.0)
+    prod_avg = st.number_input("Product Avg Purchase", min_value=0.0, step=1.0)
+    user_count = st.number_input("User Purchase Count", min_value=0, step=1)
+
+# ===============================
+# Encode Inputs
+# ===============================
+# Gender
+gender_encoded = feature_objects['Gender_Encoder'].transform([gender])[0] if 'Gender_Encoder' in feature_objects else (1 if gender=="M" else 0)
+
+# Age
+age_encoded = feature_objects['Age_Map'][age] if 'Age_Map' in feature_objects else {'0-17':0,'18-25':1,'26-35':2,'36-45':3,'46-50':4,'51-55':5,'55+':6}[age]
+
+# Marital
+marital_encoded = 1 if marital=="Married" else 0
+
+# City encoding
 city_b = 1 if city=="B" else 0
 city_c = 1 if city=="C" else 0
 
-# Create feature array
-features = np.array([[gender, age, occupation, stay, marital,
-                      prod_cat1, prod_cat2, prod_cat3,
-                      city_b, city_c,
-                      user_avg, user_total, prod_avg, user_count]])
+# ===============================
+# Prepare input DataFrame
+# ===============================
+input_df = pd.DataFrame([{
+    'Gender': gender_encoded,
+    'Age': age_encoded,
+    'Occupation': occupation,
+    'Stay_In_Current_City_Years': stay,
+    'Marital_Status': marital_encoded,
+    'Product_Category_1': prod_cat1,
+    'Product_Category_2': prod_cat2,
+    'Product_Category_3': prod_cat3,
+    'City_Category_B': city_b,
+    'City_Category_C': city_c,
+    'User_Avg_Purchase': user_avg,
+    'User_Total_Purchase': user_total,
+    'Product_Avg_Purchase': prod_avg,
+    'User_Purchase_Count': user_count
+}])
 
-# Prediction button
+# Reorder columns if feature_objects has order stored
+if 'columns_order' in feature_objects:
+    input_df = input_df[feature_objects['columns_order']]
+
+# ===============================
+# Prediction
+# ===============================
 if st.button("Predict Purchase Amount"):
-    prediction = model.predict(features)
-    st.success(f"💰 Predicted Purchase: {prediction[0]:.2f}")
+    prediction = model.predict(input_df)
+    st.success(f"💰 Predicted Purchase Amount: {prediction[0]:.2f}")
 
+# ===============================
+# Optional: Show input data
+# ===============================
+with st.expander("Show Input Data"):
+    st.write(input_df)
