@@ -2,16 +2,34 @@ import streamlit as st
 import pickle
 import pandas as pd
 import numpy as np
+import os
 
 # ===============================
-# Load model and feature objects
+# Robustly load model and feature objects
 # ===============================
-with open("model.pkl", "rb") as f:
-    model = pickle.load(f)
+BASE_DIR = os.path.dirname(__file__)  # folder containing app.py
+MODEL_PATH = os.path.join(BASE_DIR, "model.pkl")
+FEATURES_PATH = os.path.join(BASE_DIR, "features.pkl")
 
-with open("features.pkl", "rb") as f:
-    feature_objects = pickle.load(f)
+# Load model
+try:
+    with open(MODEL_PATH, "rb") as f:
+        model = pickle.load(f)
+except FileNotFoundError:
+    st.error("❌ model.pkl not found! Please make sure it is in the same folder as app.py.")
+    st.stop()
 
+# Load feature objects
+try:
+    with open(FEATURES_PATH, "rb") as f:
+        feature_objects = pickle.load(f)
+except FileNotFoundError:
+    st.error("❌ features.pkl not found! Please make sure it is in the same folder as app.py.")
+    st.stop()
+
+# ===============================
+# Page setup
+# ===============================
 st.set_page_config(page_title="Black Friday Sales Prediction", layout="wide")
 st.title("🛍️ Black Friday Sales Prediction App")
 st.write("Predict the purchase amount for a customer based on their profile and product details.")
@@ -20,8 +38,6 @@ st.write("Predict the purchase amount for a customer based on their profile and 
 # Input Section
 # ===============================
 st.header("Customer & Product Details")
-
-# Create two columns for better layout
 col1, col2 = st.columns(2)
 
 with col1:
@@ -44,16 +60,9 @@ with col2:
 # ===============================
 # Encode Inputs
 # ===============================
-# Gender
 gender_encoded = feature_objects['Gender_Encoder'].transform([gender])[0] if 'Gender_Encoder' in feature_objects else (1 if gender=="M" else 0)
-
-# Age
 age_encoded = feature_objects['Age_Map'][age] if 'Age_Map' in feature_objects else {'0-17':0,'18-25':1,'26-35':2,'36-45':3,'46-50':4,'51-55':5,'55+':6}[age]
-
-# Marital
 marital_encoded = 1 if marital=="Married" else 0
-
-# City encoding
 city_b = 1 if city=="B" else 0
 city_c = 1 if city=="C" else 0
 
@@ -77,7 +86,7 @@ input_df = pd.DataFrame([{
     'User_Purchase_Count': user_count
 }])
 
-# Reorder columns if feature_objects has order stored
+# Reorder columns if stored in features.pkl
 if 'columns_order' in feature_objects:
     input_df = input_df[feature_objects['columns_order']]
 
