@@ -8,15 +8,15 @@ import os
 # Robustly load model and feature objects
 # ===============================
 BASE_DIR = os.path.dirname(__file__)  # folder containing app.py
-MODEL_PATH = os.path.join(BASE_DIR, "model.pkl")
-FEATURES_PATH = os.path.join(BASE_DIR, "features.pkl")
+MODEL_PATH = os.path.join(BASE_DIR, "black_friday_model.pkl")  # your model
+FEATURES_PATH = os.path.join(BASE_DIR, "features.pkl")         # your features
 
 # Load model
 try:
     with open(MODEL_PATH, "rb") as f:
         model = pickle.load(f)
 except FileNotFoundError:
-    st.error("❌ model.pkl not found! Please make sure it is in the same folder as app.py.")
+    st.error("❌ black_friday_model.pkl not found! Please make sure it is in the same folder as app.py.")
     st.stop()
 
 # Load feature objects
